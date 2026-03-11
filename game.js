@@ -1,167 +1,162 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-class Ball{
-constructor(x,y,radius,speedX,speedY,color){
-this.x=x;
-this.y=y;
-this.radius=radius;
-this.speedX=speedX;
-this.speedY=speedY;
-this.color=color;
-}
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-draw(){
-ctx.beginPath();
-ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-ctx.fillStyle=this.color;
-ctx.fill();
-ctx.closePath();
-}
+const image = new Image();
+image.src = "img/sharingan.png";
 
-move(){
-this.x+=this.speedX;
-this.y+=this.speedY;
+class ObjectFalling {
 
-if(this.y-this.radius<=0 || this.y+this.radius>=canvas.height){
-this.speedY=-this.speedY;
-}
-}
+    constructor(x, y, size, speed) {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.speed = speed;
+    }
 
-reset(){
-this.x=canvas.width/2;
-this.y=canvas.height/2;
-this.speedX=-this.speedX;
-}
-}
+    draw() {
 
-class Paddle{
-constructor(x,y,width,height,color){
-this.x=x;
-this.y=y;
-this.width=width;
-this.height=height;
-this.color=color;
-this.speed=6;
-}
+        // sombra roja estilo sharingan
+        ctx.shadowColor = "red";
+        ctx.shadowBlur = 10;
 
-draw(){
-ctx.fillStyle=this.color;
-ctx.fillRect(this.x,this.y,this.width,this.height);
-}
+        ctx.drawImage(
+            image,
+            this.x,
+            this.y,
+            this.size,
+            this.size
+        );
 
-move(direction){
-if(direction==="up" && this.y>0){
-this.y-=this.speed;
-}
-else if(direction==="down" && this.y+this.height<canvas.height){
-this.y+=this.speed;
-}
-}
+        ctx.shadowBlur = 0;
+    }
 
-autoMove(ball){
-if(ball.y<this.y+this.height/2){
-this.y-=this.speed;
-}
-else{
-this.y+=this.speed;
-}
-}
-}
+    move(counter) {
 
-class Game{
+        let extra = 0;
 
-constructor(){
+        if (counter > 15) {
+            extra = 4;
+        } else if (counter > 10) {
+            extra = 2;
+        }
 
-this.balls=[
-new Ball(400,300,10,4,4,"red"),
-new Ball(400,300,8,3,5,"yellow"),
-new Ball(400,300,12,5,3,"cyan"),
-new Ball(400,300,6,6,4,"orange"),
-new Ball(400,300,9,4,6,"lime")
-];
+        this.y += this.speed + extra;
 
-this.paddle1=new Paddle(0,250,10,200,"blue"); // jugador doble tamaño
-this.paddle2=new Paddle(790,250,10,100,"purple");
+        // si sale abajo vuelve arriba
+        if (this.y > canvas.height) {
+            this.y = -40;
+            this.x = Math.random() * canvas.width;
+        }
 
-this.keys={};
-}
-
-draw(){
-
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-this.balls.forEach(ball=>{
-ball.draw();
-});
-
-this.paddle1.draw();
-this.paddle2.draw();
+    }
 
 }
 
-update(){
+class Game {
 
-this.balls.forEach(ball=>{
+    constructor() {
 
-ball.move();
+        this.objects = [];
+        this.counter = 0;
 
-if(this.keys["ArrowUp"]) this.paddle1.move("up");
-if(this.keys["ArrowDown"]) this.paddle1.move("down");
+        for (let i = 0; i < 10; i++) {
 
-this.paddle2.autoMove(ball);
+            this.objects.push(
+                new ObjectFalling(
+                    Math.random() * canvas.width,
+                    Math.random() * -500,
+                    45,
+                    1 + Math.random() * 3
+                )
+            );
 
-if(
-ball.x-ball.radius<=this.paddle1.x+this.paddle1.width &&
-ball.y>=this.paddle1.y &&
-ball.y<=this.paddle1.y+this.paddle1.height
-){
-ball.speedX=-ball.speedX;
+        }
+
+        this.handleClick();
+
+    }
+
+    draw() {
+
+        // limpia canvas pero deja ver el fondo de la página
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        this.objects.forEach(obj => {
+            obj.draw();
+        });
+
+    }
+
+    update() {
+
+        this.objects.forEach(obj => {
+            obj.move(this.counter);
+        });
+
+    }
+
+    handleClick() {
+
+        canvas.addEventListener("click", (e) => {
+
+            const mouseX = e.offsetX;
+            const mouseY = e.offsetY;
+
+            this.objects.forEach((obj, index) => {
+
+                const centerX = obj.x + obj.size / 2;
+                const centerY = obj.y + obj.size / 2;
+
+                const dx = mouseX - centerX;
+                const dy = mouseY - centerY;
+
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < obj.size / 2) {
+
+                    this.objects.splice(index, 1);
+
+                    this.counter++;
+
+                    document.getElementById("contador").innerText =
+                        "Eliminadas: " + this.counter;
+
+                    this.objects.push(
+                        new ObjectFalling(
+                            Math.random() * canvas.width,
+                            -50,
+                            45,
+                            1 + Math.random() * 3
+                        )
+                    );
+
+                }
+
+            });
+
+        });
+
+    }
+
+    run() {
+
+        const loop = () => {
+
+            this.update();
+            this.draw();
+
+            requestAnimationFrame(loop);
+
+        };
+
+        loop();
+
+    }
+
 }
 
-if(
-ball.x+ball.radius>=this.paddle2.x &&
-ball.y>=this.paddle2.y &&
-ball.y<=this.paddle2.y+this.paddle2.height
-){
-ball.speedX=-ball.speedX;
-}
-
-if(ball.x-ball.radius<=0 || ball.x+ball.radius>=canvas.width){
-ball.reset();
-}
-
-});
-
-}
-
-handleInput(){
-
-window.addEventListener("keydown",(e)=>{
-this.keys[e.key]=true;
-});
-
-window.addEventListener("keyup",(e)=>{
-this.keys[e.key]=false;
-});
-
-}
-
-run(){
-
-this.handleInput();
-
-const loop=()=>{
-this.update();
-this.draw();
-requestAnimationFrame(loop);
-}
-
-loop();
-
-}
-
-}
-
-const game=new Game();
+const game = new Game();
 game.run();
